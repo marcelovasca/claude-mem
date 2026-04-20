@@ -3,11 +3,11 @@ import { logger } from '../utils/logger.js';
 import { SYSTEM_REMINDER_REGEX } from '../utils/tag-stripping.js';
 
 /**
- * Detect whether a transcript file is in Gemini CLI JSON document format.
+ * Detect whether a transcript file is in Gemini/Qwen CLI JSON document format.
  *
- * Gemini CLI 0.37.0 writes a single JSON document with a top-level `messages`
- * array instead of JSONL. Assistant entries use `type: "gemini"` rather than
- * `type: "assistant"`.
+ * Gemini/Qwen CLI writes a single JSON document with a top-level `messages`
+ * array instead of JSONL. Assistant entries use `type: "gemini"` or `type: "qwen"`
+ * rather than `type: "assistant"`.
  *
  * Example Gemini format:
  *   { "messages": [{ "type": "user", "content": "..." }, { "type": "gemini", "content": "..." }] }
@@ -15,16 +15,16 @@ import { SYSTEM_REMINDER_REGEX } from '../utils/tag-stripping.js';
  * Claude Code format (JSONL):
  *   {"type":"assistant","message":{"content":[{"type":"text","text":"..."}]}}
  */
-function isGeminiTranscriptFormat(content: string): { isGemini: true; messages: any[] } | { isGemini: false } {
+function isJsonDocumentTranscriptFormat(content: string): { isJsonDoc: true; messages: any[] } | { isJsonDoc: false } {
   try {
     const parsed = JSON.parse(content);
     if (parsed && Array.isArray(parsed.messages)) {
-      return { isGemini: true, messages: parsed.messages };
+      return { isJsonDoc: true, messages: parsed.messages };
     }
   } catch {
     // Not a valid single JSON object — assume JSONL
   }
-  return { isGemini: false };
+  return { isJsonDoc: false };
 }
 
 /**
@@ -32,7 +32,7 @@ function isGeminiTranscriptFormat(content: string): { isGemini: true; messages: 
  *
  * Supports two transcript formats:
  * - JSONL (Claude Code): one JSON object per line, `type: "assistant"` or `type: "user"`
- * - JSON document (Gemini CLI 0.37.0+): `{ messages: [{ type: "gemini"|"user", content: string }] }`
+ * - JSON document (Gemini/Qwen CLI 0.37.0+): `{ messages: [{ type: "gemini"|"qwen"|"user", content: string }] }`
  *
  * @param transcriptPath Path to transcript file
  * @param role 'user' or 'assistant'
@@ -54,31 +54,35 @@ export function extractLastMessage(
     return '';
   }
 
-  // Gemini CLI 0.37.0 writes a JSON document rather than JSONL.
+  // Gemini/Qwen CLI 0.37.0 writes a JSON document rather than JSONL.
   // Detect and handle it before falling through to the JSONL parser.
-  const geminiCheck = isGeminiTranscriptFormat(content);
-  if (geminiCheck.isGemini) {
-    return extractLastMessageFromGeminiTranscript(geminiCheck.messages, role, stripSystemReminders);
+  const jsonDocCheck = isJsonDocumentTranscriptFormat(content);
+  if (jsonDocCheck.isJsonDoc) {
+    return extractLastMessageFromGeminiTranscript(jsonDocCheck.messages, role, stripSystemReminders);
   }
 
   return extractLastMessageFromJsonl(content, role, stripSystemReminders);
 }
 
 /**
- * Extract last message from Gemini CLI JSON document transcript.
- * Maps `type: "gemini"` → assistant role; `type: "user"` → user role.
+ * Extract last message from Gemini/Qwen CLI JSON document transcript.
+ * Maps `type: "gemini" | "qwen"` → assistant role; `type: "user"` → user role.
  */
 function extractLastMessageFromGeminiTranscript(
   messages: any[],
   role: 'user' | 'assistant',
   stripSystemReminders: boolean
 ): string {
-  // "gemini" entries are assistant turns; "user" entries are user turns
-  const geminiRole = role === 'assistant' ? 'gemini' : 'user';
+  // "gemini" or "qwen" entries are assistant turns; "user" entries are user turns
+  const isAssistantRole = role === 'assistant';
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg?.type === geminiRole && typeof msg.content === 'string') {
+    const isMatchingRole = isAssistantRole
+      ? (msg?.type === 'gemini' || msg?.type === 'qwen')
+      : msg?.type === 'user';
+
+    if (isMatchingRole && typeof msg?.content === 'string') {
       let text = msg.content;
       if (stripSystemReminders) {
         text = text.replace(SYSTEM_REMINDER_REGEX, '');

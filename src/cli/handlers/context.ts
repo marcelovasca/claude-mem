@@ -76,9 +76,9 @@ export const contextHandler: EventHandler = {
     const platform = input.platform;
 
     // Use colored timeline for display if available, otherwise fall back to
-    // plain markdown context (especially useful for platforms like Gemini
+    // plain markdown context (especially useful for platforms like Gemini/Qwen
     // where we want to ensure visibility even if colors aren't fetched).
-    const displayContent = coloredTimeline || (platform === 'gemini-cli' || platform === 'gemini' ? additionalContext : '');
+    const displayContent = coloredTimeline || (platform === 'gemini-cli' || platform === 'gemini' || platform === 'qwen-cli' || platform === 'qwen' ? additionalContext : '');
 
     const systemMessage = showTerminalOutput && displayContent
       ? `${displayContent}\n\nView Observations Live @ http://localhost:${port}`

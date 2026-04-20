@@ -165,6 +165,18 @@ async function setupIDEs(selectedIDEs: string[]): Promise<string[]> {
         break;
       }
 
+      case 'qwen-cli': {
+        const { installQwenCliHooks } = await import('../../services/integrations/QwenCliHooksInstaller.js');
+        const qwenResult = await installQwenCliHooks();
+        if (qwenResult === 0) {
+          log.success('Qwen CLI: hooks installed.');
+        } else {
+          log.error('Qwen CLI: hook installation failed.');
+          failedIDEs.push(ideId);
+        }
+        break;
+      }
+
       case 'opencode': {
         const { installOpenCodeIntegration } = await import('../../services/integrations/OpenCodeInstaller.js');
         const openCodeResult = await installOpenCodeIntegration();

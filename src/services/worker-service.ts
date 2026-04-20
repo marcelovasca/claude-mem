@@ -73,6 +73,9 @@ import {
 import {
   handleGeminiCliCommand
 } from './integrations/GeminiCliHooksInstaller.js';
+import {
+  handleQwenCliCommand
+} from './integrations/QwenCliHooksInstaller.js';
 
 // Service layer imports
 import { DatabaseManager } from './worker/DatabaseManager.js';
@@ -1276,13 +1279,20 @@ async function main() {
       break;
     }
 
+    case 'qwen-cli': {
+      const qwenSubcommand = process.argv[3];
+      const qwenResult = await handleQwenCliCommand(qwenSubcommand, process.argv.slice(4));
+      process.exit(qwenResult);
+      break;
+    }
+
     case 'hook': {
       // Validate CLI args first (before any I/O)
       const platform = process.argv[3];
       const event = process.argv[4];
       if (!platform || !event) {
         console.error('Usage: claude-mem hook <platform> <event>');
-        console.error('Platforms: claude-code, cursor, gemini-cli, raw');
+        console.error('Platforms: claude-code, cursor, gemini-cli, qwen-cli, raw');
         console.error('Events: context, session-init, observation, summarize, session-complete, user-message');
         process.exit(1);
       }

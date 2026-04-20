@@ -90,6 +90,12 @@ export function detectInstalledIDEs(): IDEInfo[] {
       supported: true,
     },
     {
+      id: 'qwen-cli',
+      label: 'Qwen CLI',
+      detected: existsSync(join(home, '.qwen')) || isCommandInPath('qwen'),
+      supported: true,
+    },
+    {
       id: 'opencode',
       label: 'OpenCode',
       detected:
